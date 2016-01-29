@@ -140,7 +140,7 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
-static bool next_thread_comparator (const struct list_elem *a, const struct list_elem *b,
+bool next_thread_comparator (const struct list_elem *a, const struct list_elem *b,
                         void *aux);
 
 int thread_get_nice (void);
