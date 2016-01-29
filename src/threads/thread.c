@@ -410,7 +410,9 @@ thread_set_priority (int new_priority)
   enum intr_level old_state;
   old_state = intr_disable();
 
-  thread_current ()->priority = new_priority;
+  thread_current ()->base_priority = new_priority;
+  if (new_priority > thread_current ()->priority)
+    thread_current ()->priority = new_priority;
   if (new_priority < highest_priority_thread()->priority)
     thread_yield();
 
@@ -540,7 +542,9 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->base_priority = priority;
   t->wakeup_time = 0; // New1_1
+  list_init (&donor_list);
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
