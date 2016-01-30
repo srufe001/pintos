@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -53,6 +54,7 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+static float load_avg;          /* used in the mlfqs scheduler */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -93,6 +95,8 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+  if (thread_mlfqs) load_avg = 0;
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -122,6 +126,7 @@ thread_start (void)
 void
 thread_tick (void) 
 {
+  // TODO do mlfqs stuff before ticks++ in timer_interrupt?
   struct thread *t = thread_current ();
 
   /* Update statistics. */
@@ -129,10 +134,39 @@ thread_tick (void)
     idle_ticks++;
 #ifdef USERPROG
   else if (t->pagedir != NULL)
+  {
     user_ticks++;
+    thread_current ()->recent_cpu++;
+  }
 #endif
   else
+  {
     kernel_ticks++;
+    thread_current ()->recent_cpu++;
+  }
+
+  if (thread_mlfqs && timer_ticks () && TIMER_FREQ == 0)
+  {
+    // Update recent_cpu for all threads and get the number of running threads
+    // for use  when updating load_avg
+    int ready_threads = (thread_current () == idle_thread) ? 0 : 1;
+    if (!list_empty (&all_list))
+    {
+      struct list_elem *e;
+      for (e = list_begin (&all_list); e != list_end (&all_list);
+           e = list_next (e))
+      {
+        struct thread *t = list_entry (e, struct thread, allelem);
+        int load_avg = thread_get_load_avg ();
+        t->recent_cpu = ((int) ((float) (2 * load_avg) /
+                        (float) (2 * load_avg + 1)) * t->recent_cpu) + t->nice;
+
+        if (t->status == THREAD_RUNNING) ++ready_threads;
+      }
+    }
+    // Update load_avg
+    load_avg = ((float) 59 / 60) * load_avg + ((float) 1 / 60) * ready_threads;
+  }
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -210,7 +244,9 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
 
   /* yield if the newly created thread has higher priority */
-  if (thread_get_priority() < t->priority)
+  // TODO do not check for mlfqs if we calculate priority in this function. I'm
+  // just not sure yet if we have to do that
+  if (!thread_mlfqs && thread_get_priority() < t->priority)
     thread_yield();
 
   return tid;
@@ -498,20 +534,31 @@ thread_get_nice (void)
   return thread_current ()->nice;
 }
 
+/* calculates, sets,  and returns the thread's mlfqs priority */
+int
+thread_calculate_mlfqs_priority  (void)
+{
+  // TODO use thread_get_recent_cpu or thread_current ()->recent_cpu?
+  int new_priority = PRI_MAX - thread_current ()->recent_cpu / 4 -
+                     2 * thread_get_nice ();
+  if (new_priority < PRI_MIN) new_priority = PRI_MIN;
+  else if (new_priority > PRI_MAX) new_priority = PRI_MAX;
+  return thread_current ()->priority;
+}
+
+
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return (int) (100 * load_avg);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return (int) (100 * thread_current ()->recent_cpu);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -601,6 +648,8 @@ init_thread (struct thread *t, const char *name, int priority)
   {
     t->priority = priority;
     t->base_priority = priority;
+    // TODO look if this is an ok way to do this
+    t->recent_cpu = (is_thread (running_thread ())) ? running_thread ()->recent_cpu : 0;
   }
   t->wakeup_time = 0; // New1_1
   // TODO move these two lines into the if, since mlfqs doesn't do pri donation?

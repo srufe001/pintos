@@ -90,10 +90,11 @@ struct thread
     int priority;                       /* Priority, including donated priority. */
     int base_priority;                  /* Base priority. */
     int nice;                           /* Only used with mlfqs scheduler */
+    float recent_cpu;                   /* Only used with mlfqs scheduler */
 
     struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
+    /* Shared between thread.c, timer.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
@@ -143,12 +144,13 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 void thread_set_priority (int);
 void thread_donate_priority(struct thread *, int, int);
-void thread_recalculate_donated_priority ();
+void thread_recalculate_donated_priority (void);
 bool next_thread_comparator (const struct list_elem *a, const struct list_elem *b,
                         void *aux);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
+int thread_calculate_mlfqs_priority (void);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
