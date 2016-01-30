@@ -411,9 +411,9 @@ thread_set_priority (int new_priority)
   enum intr_level old_state;
   old_state = intr_disable();
 
+//TODO factor in priority donation
   thread_current ()->base_priority = new_priority;
-  if (new_priority > thread_get_priority ())
-    thread_current ()->priority = new_priority;
+  thread_recalculate_donated_priority();
   if (new_priority < highest_priority_thread()->priority)
     thread_yield();
 
@@ -426,6 +426,54 @@ int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
+}
+
+/* donate priority to thread t and any lock holder whose lock it is waiting on */
+void
+thread_donate_priority(struct thread *t, int donated_priority, int iter)
+{
+  if (iter >= 8) return;
+  ++iter;
+  if (donated_priority > t->priority)
+  {
+    t->priority = donated_priority;
+    /* if t is waiting on another lock, cascade up the priority donation */
+    if (t->waiting_on != NULL)
+      thread_donate_priority(t->waiting_on->holder, donated_priority, iter); 
+  }
+}
+
+/* recalculate the current thread's priority based on priorites of all threads
+ * that are waiting on it
+ */
+void
+thread_recalculate_donated_priority ()
+{
+  struct thread *t = thread_current ();
+  int priority_temp = t->base_priority;
+  if (!list_empty (&t->held_locks))
+  {
+    /* iterate through all held lock's waiting lists */
+    struct list_elem *e1;
+    for (e1 = list_begin (&t->held_locks); e1 != list_end (&t->held_locks);
+         e1 = list_next (e1))
+    {
+      struct lock *l = list_entry (e1, struct lock, elem);
+      if (list_empty (&l->semaphore.waiters))
+        continue;
+      struct list_elem *e2;
+      for (e2 = list_begin (&l->semaphore.waiters);
+           e2 != list_end (&l->semaphore.waiters); e2 = list_next (e2))
+      {
+        struct thread *waiter = list_entry (e2, struct thread, elem);
+        /* update priority_temp if a waiting thread has higher priority */
+        if (waiter->priority > priority_temp)
+          priority_temp = waiter->priority;
+      }
+    }
+  }
+  /* update thread's priority. priority_temp may be equal to t->priority */
+  t->priority = priority_temp;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -545,7 +593,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->base_priority = priority;
   t->wakeup_time = 0; // New1_1
-  list_init (&t->donor_list);
+  list_init (&t->held_locks);
+  t->waiting_on = NULL;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }

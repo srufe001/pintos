@@ -94,8 +94,6 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    struct list_elem donor_elem;        /* used to add list as a priority donor */
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -104,7 +102,9 @@ struct thread
     // New1_1
     int64_t wakeup_time;                /* If sleeping, the time to wake up at */
 
-    struct list donor_list;             /* list of priority-donating threads*/
+    struct list held_locks;             /* list of held locks */
+    struct lock *waiting_on;            /* the lock being waited for. NULL if
+                                           not waiting */            
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -140,6 +140,8 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void thread_donate_priority(struct thread *, int, int);
+void thread_recalculate_donated_priority ();
 bool next_thread_comparator (const struct list_elem *a, const struct list_elem *b,
                         void *aux);
 
