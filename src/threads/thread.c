@@ -407,11 +407,12 @@ list_threads ()
 void
 thread_set_priority (int new_priority) 
 {
+  if (thread_mlfqs) return; // Do not allow threads to change priority if mlfqs is
+                            // used
   // disable interrupts
   enum intr_level old_state;
   old_state = intr_disable();
 
-//TODO factor in priority donation
   thread_current ()->base_priority = new_priority;
   thread_recalculate_donated_priority();
   if (new_priority < highest_priority_thread()->priority)
@@ -432,6 +433,8 @@ thread_get_priority (void)
 void
 thread_donate_priority(struct thread *t, int donated_priority, int iter)
 {
+  if (thread_mlfqs) return; // Do not allow threads to change priority if mlfqs is
+                            // used
   if (iter >= 8) return;
   ++iter;
   if (donated_priority > t->priority)
@@ -449,6 +452,8 @@ thread_donate_priority(struct thread *t, int donated_priority, int iter)
 void
 thread_recalculate_donated_priority ()
 {
+  if (thread_mlfqs) return; // Do not allow threads to change priority if mlfqs is
+                            // used
   struct thread *t = thread_current ();
   int priority_temp = t->base_priority;
   if (!list_empty (&t->held_locks))
@@ -478,17 +483,19 @@ thread_recalculate_donated_priority ()
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  if (nice > 20) thread_current ()->nice = 20;
+  else if (nice < -20) thread_current ()->nice = -20;
+  else thread_current ()->nice = -20;
+  // TODO recalculate priority
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current ()->nice;
 }
 
 /* Returns 100 times the system load average. */
@@ -590,9 +597,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->priority = priority;
-  t->base_priority = priority;
+  if (!thread_mlfqs)
+  {
+    t->priority = priority;
+    t->base_priority = priority;
+  }
   t->wakeup_time = 0; // New1_1
+  // TODO move these two lines into the if, since mlfqs doesn't do pri donation?
   list_init (&t->held_locks);
   t->waiting_on = NULL;
   t->magic = THREAD_MAGIC;

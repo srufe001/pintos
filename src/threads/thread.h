@@ -89,6 +89,8 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority, including donated priority. */
     int base_priority;                  /* Base priority. */
+    int nice;                           /* Only used with mlfqs scheduler */
+
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
