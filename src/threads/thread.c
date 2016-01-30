@@ -251,6 +251,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  //if (t->priority > thread_get_priority()) thread_yield();
   intr_set_level (old_level);
 }
 
@@ -411,7 +412,7 @@ thread_set_priority (int new_priority)
   old_state = intr_disable();
 
   thread_current ()->base_priority = new_priority;
-  if (new_priority > thread_current ()->priority)
+  if (new_priority > thread_get_priority ())
     thread_current ()->priority = new_priority;
   if (new_priority < highest_priority_thread()->priority)
     thread_yield();
