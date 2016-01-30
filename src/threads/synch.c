@@ -212,7 +212,7 @@ lock_acquire (struct lock *lock)
   bool success = sema_try_down (&lock->semaphore);
   if (!success)
   {
-    thread_donate_priority(lock->holder, thread_get_priority(), 0);
+    thread_donate_priority(lock->holder, thread_get_priority());
     thread_current ()->waiting_on = lock;
     sema_down (&lock->semaphore);
   } 
