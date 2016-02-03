@@ -467,18 +467,16 @@ thread_get_priority (void)
 
 /* donate priority to thread t and any lock holder whose lock it is waiting on */
 void
-thread_donate_priority(struct thread *t, int donated_priority, int iter)
+thread_donate_priority(struct thread *t, int donated_priority)
 {
   if (thread_mlfqs) return; // Do not allow threads to change priority if mlfqs is
                             // used
-  if (iter >= 8) return;
-  ++iter;
   if (donated_priority > t->priority)
   {
     t->priority = donated_priority;
     /* if t is waiting on another lock, cascade up the priority donation */
     if (t->waiting_on != NULL)
-      thread_donate_priority(t->waiting_on->holder, donated_priority, iter); 
+      thread_donate_priority(t->waiting_on->holder, donated_priority); 
   }
 }
 
