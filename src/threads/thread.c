@@ -16,6 +16,113 @@
 #include "userprog/process.h"
 #endif
 
+
+
+
+
+
+
+
+
+
+
+int f = 1 << 14;
+
+// Converts an integer n to a fixed-point number
+fixed
+toFP(int n)
+{
+  return n * f;
+}
+
+// Converts a fixed-point number x to an integer, rounding toward zero
+int
+toIntZero(fixed x)
+{
+  return x / f;
+}
+
+// Converts a fixed-point number x to an integer, rounding to nearest integer
+int
+toIntRound(fixed x)
+{
+  if (x >= 0)
+    return (x + f / 2) / f;
+  else
+    return (x - f / 2) / f;
+}
+
+// Add 2 fixed-point number, x and y
+fixed
+addFF(fixed x, fixed y)
+{
+  return x + y;
+}
+
+// Subtracts a fixed-point number y from a fixed-point number x
+fixed
+subFF(fixed x, fixed y)
+{
+  return x - y;
+}
+
+// Add a fixed-point number x to an integer n
+fixed
+addFI(fixed x, int n)
+{
+  return x + toFP(n);
+}
+
+// Subtract an integer n from a fixed-point number x
+fixed
+subFI(fixed x, int n)
+{
+  return x - toFP(n);
+}
+
+// Multiply a fixed-point number x by a fixed-point number y
+fixed
+multFF(fixed x, fixed y)
+{
+  return ((int64_t) x) * y / f;
+}
+
+// Multiply a fixed-point number x by an integer n
+fixed
+multFI(fixed x, int n)
+{
+  return x * n;
+}
+
+// Divide a fixed-point number x by a fixed-point number y
+fixed
+divFF(fixed x, fixed y)
+{
+  return ((int64_t) x) * f / y;
+}
+
+// Divide a fixed-point number x by an integer n
+fixed
+divFI(fixed x, int n)
+{
+  return x / n;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -54,7 +161,7 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
-static float load_avg;          /* used in the mlfqs scheduler */
+static fixed load_avg;          /* used in the mlfqs scheduler */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -95,7 +202,7 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
-  if (thread_mlfqs) load_avg = 0;
+  if (thread_mlfqs) load_avg = toFP(0);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -136,19 +243,19 @@ thread_tick (void)
   else if (t->pagedir != NULL)
   {
     user_ticks++;
-    thread_current ()->recent_cpu++;
+    t->recent_cpu = addFI(t->recent_cpu, 1);
   }
 #endif
   else
   {
     kernel_ticks++;
-    thread_current ()->recent_cpu++;
+    t->recent_cpu = addFI(t->recent_cpu, 1);
   }
 
-  if (thread_mlfqs && timer_ticks () && TIMER_FREQ == 0)
+  if (thread_mlfqs && timer_ticks () % TIMER_FREQ == 0)
   {
-    // Update recent_cpu for all threads and get the number of running threads
-    // for use  when updating load_avg
+    /* update load_avg */
+    // calculate the number of running or ready threads
     int ready_threads = (thread_current () == idle_thread) ? 0 : 1;
     if (!list_empty (&all_list))
     {
@@ -156,16 +263,21 @@ thread_tick (void)
       for (e = list_begin (&all_list); e != list_end (&all_list);
            e = list_next (e))
       {
-        struct thread *t = list_entry (e, struct thread, allelem);
-        int load_avg = thread_get_load_avg ();
-        t->recent_cpu = ((int) ((float) (2 * load_avg) /
-                        (float) (2 * load_avg + 1)) * t->recent_cpu) + t->nice;
-
-        if (t->status == THREAD_RUNNING) ++ready_threads;
+        ++ready_threads;
       }
     }
-    // Update load_avg
-    load_avg = ((float) 59 / 60) * load_avg + ((float) 1 / 60) * ready_threads;
+    load_avg = addFF(multFF(divFI(toFP(59), 60), load_avg), multFI(divFI(toFP(1), 60), ready_threads));
+    /* update each thread's recent_cpu */
+    if (!list_empty (&all_list))
+    {
+      struct list_elem *e;
+      for (e = list_begin (&all_list); e != list_end (&all_list);
+           e = list_next (e))
+      {
+        struct thread *t1 = list_entry (e, struct thread, allelem);
+        t1->recent_cpu = addFI(multFF(divFF(multFI(load_avg, 2), addFI(multFI(load_avg, 2), 1)), t1->recent_cpu), t1->nice);
+      }
+    }
   }
 
   /* Enforce preemption. */
@@ -484,7 +596,7 @@ thread_donate_priority(struct thread *t, int donated_priority)
  * that are waiting on it
  */
 void
-thread_recalculate_donated_priority ()
+thread_recalculate_donated_priority (void)
 {
   if (thread_mlfqs) return; // Do not allow threads to change priority if mlfqs is
                             // used
@@ -519,9 +631,12 @@ thread_recalculate_donated_priority ()
 void
 thread_set_nice (int nice) 
 {
-  if (nice > 20) thread_current ()->nice = 20;
-  else if (nice < -20) thread_current ()->nice = -20;
-  else thread_current ()->nice = -20;
+  if (nice > 20)
+    thread_current ()->nice = 20;
+  else if (nice < -20)
+    thread_current ()->nice = -20;
+  else
+    thread_current ()->nice = -20;
   // TODO recalculate priority
 }
 
@@ -536,12 +651,14 @@ thread_get_nice (void)
 int
 thread_calculate_mlfqs_priority  (void)
 {
+  /*
   // TODO use thread_get_recent_cpu or thread_current ()->recent_cpu?
   int new_priority = PRI_MAX - thread_current ()->recent_cpu / 4 -
                      2 * thread_get_nice ();
   if (new_priority < PRI_MIN) new_priority = PRI_MIN;
   else if (new_priority > PRI_MAX) new_priority = PRI_MAX;
   return thread_current ()->priority;
+  */
 }
 
 
@@ -549,14 +666,14 @@ thread_calculate_mlfqs_priority  (void)
 int
 thread_get_load_avg (void) 
 {
-  return (int) (100 * load_avg);
+  return toIntRound(multFI(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  return (int) (100 * thread_current ()->recent_cpu);
+  return toIntRound(multFI(thread_current ()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -647,7 +764,7 @@ init_thread (struct thread *t, const char *name, int priority)
     t->priority = priority;
     t->base_priority = priority;
     // TODO look if this is an ok way to do this
-    t->recent_cpu = (is_thread (running_thread ())) ? running_thread ()->recent_cpu : 0;
+    t->recent_cpu = (is_thread (running_thread ())) ? running_thread ()->recent_cpu : toFP(0);
   }
   t->wakeup_time = 0; // New1_1
   // TODO move these two lines into the if, since mlfqs doesn't do pri donation?

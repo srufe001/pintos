@@ -1,14 +1,8 @@
-#ifndef THREADS_FIXED_POINT_H
-#define THREADS_FIXED_POINT_H
+#include "threads/fixed-point.h"
 
-#include<stdint.h>
+//#include<stdint.h>
 
-static int f = 1 << 14;
-
-// the fixed-point numbers in this file are 17.14
-// x and y refer to fixed-point numbers, n refers to a integer
-
-typedef int32_t fixed;
+int f = 1 << 14;
 
 // Converts an integer n to a fixed-point number
 fixed
@@ -89,5 +83,3 @@ divFI(fixed x, int n)
 {
   return x / n;
 }
-
-#endif /* threads/fixed-point.h */

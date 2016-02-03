@@ -1,5 +1,43 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
+#include<stdint.h>
+
+
+
+
+
+// the fixed-point numbers in this file are 17.14
+// x and y refer to fixed-point numbers, n refers to a integer
+
+typedef int32_t fixed;
+
+fixed addFI(fixed, int);
+
+fixed subFI(fixed, int);
+
+fixed subFF(fixed, fixed);
+
+fixed addFF(fixed, fixed);
+
+int toIntRound(fixed);
+
+int toIntZero(fixed);
+
+fixed toFP(int);
+
+fixed multFF(fixed, fixed);
+
+fixed multFI(fixed, int);
+
+fixed divFF(fixed, fixed);
+
+fixed divFI(fixed, int);
+
+
+
+
+
+
 
 #include <debug.h>
 #include <list.h>
@@ -90,7 +128,7 @@ struct thread
     int priority;                       /* Priority, including donated priority. */
     int base_priority;                  /* Base priority. */
     int nice;                           /* Only used with mlfqs scheduler */
-    float recent_cpu;                   /* Only used with mlfqs scheduler */
+    fixed recent_cpu;                   /* Only used with mlfqs scheduler */
 
     struct list_elem allelem;           /* List element for all threads list. */
 
@@ -145,7 +183,7 @@ int thread_get_priority (void);
 void thread_set_priority (int);
 
 void thread_donate_priority(struct thread *, int);
-void thread_recalculate_donated_priority ();
+void thread_recalculate_donated_priority (void);
 
 bool next_thread_comparator (const struct list_elem *a, const struct list_elem *b,
                         void *aux);
