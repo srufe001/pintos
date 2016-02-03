@@ -5,9 +5,9 @@
 #include<stdint.h>
 
 
-unsigned char p = 17;
-unsigned char q = 14;
-unsigned char f = 1 << q;
+int p = 17;
+int q = 14;
+int f = 1 << q;
 
 // the fixed-point numbers in this file are 17.14
 // x and y refer to fixed-point numbers, n refers to a integer
@@ -84,21 +84,6 @@ divFF(fixed x, fixed y)
 fixed
 divFI(fixed x, int n)
 {
-}
-
-int main() {
-  int a_i = 16;
-  fixed a_f = toFP(a_i);
-  int b_i = 8;
-  fixed b_f = toFP(b_i);
-
-  std::cout << toIntZero(addFI(a_f, b_i)) << std::endl;
-  std::cout << toIntZero(addFF(a_f, b_f)) << std::endl;
-
-  std::cout << toIntZero(multFI(a_f, b_i)) << std::endl;
-  std::cout << toIntZero(multFF(a_f, b_f)) << std::endl;
-
-  return 0;
 }
 
 #endif /* threads/fixed-point.h */
