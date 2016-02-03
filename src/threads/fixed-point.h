@@ -3,6 +3,8 @@
 
 #include<stdint.h>
 
+static int f = 1 << 14;
+
 // the fixed-point numbers in this file are 17.14
 // x and y refer to fixed-point numbers, n refers to a integer
 
@@ -12,12 +14,14 @@ typedef int32_t fixed;
 fixed
 toFP(int n)
 {
+  return n * f;
 }
 
 // Converts a fixed-point number x to an integer, rounding toward zero
 int
 toIntZero(fixed x)
 {
+  return x / f;
 }
 
 // Converts a fixed-point number x to an integer, rounding to nearest integer
@@ -30,6 +34,7 @@ toIntRound(fixed x)
 fixed
 addFF(fixed x, fixed y)
 {
+  return x + y;
 }
 
 // Subtracts a fixed-point number y from a fixed-point number x
@@ -42,6 +47,7 @@ subFF(fixed x, fixed y)
 fixed
 addFI(fixed x, int n)
 {
+  return x + toFP(n);
 }
 
 // Subtract an integer n from a fixed-point number x
@@ -54,12 +60,14 @@ subFI(fixed x, int n)
 fixed
 multFF(fixed x, fixed y)
 {
+  return ((int64_t) x) * y / f;
 }
 
 // Multiply a fixed-point number x by an integer n
 fixed
 multFI(fixed x, int n)
 {
+  return x * n;
 }
 
 // Divide a fixed-point number x by a fixed-point number y
