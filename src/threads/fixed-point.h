@@ -1,13 +1,9 @@
 #ifndef THREADS_FIXED_POINT_H
 #define THREADS_FIXED_POINT_H
 
-#include<iostream>
 #include<stdint.h>
 
-
-int p = 17;
-int q = 14;
-int f = 1 << q;
+static int f = 1 << 14;
 
 // the fixed-point numbers in this file are 17.14
 // x and y refer to fixed-point numbers, n refers to a integer
