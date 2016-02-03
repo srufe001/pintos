@@ -1,10 +1,12 @@
-#ifndef THREADS_FIXED-POINT_H
-#define THREADS_FIXED-POINT_H
+#ifndef THREADS_FIXED_POINT_H
+#define THREADS_FIXED_POINT_H
+
+#include<stdint.h>
 
 // the fixed-point numbers in this file are 17.14
 // x and y refer to fixed-point numbers, n refers to a integer
 
-typedef int32_t fixed
+typedef int32_t fixed;
 
 // Converts an integer n to a fixed-point number
 fixed
